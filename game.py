@@ -1,4 +1,5 @@
 #Vernon Loh Jin Feng - IM02 - S10270739K
+from random import randint
 #------------------------Functions------------------------
 def DisplayMainMenu():
     print("---------------- Welcome to Sundrop Caves! ----------------")
@@ -20,16 +21,50 @@ def LoadData():
     return
 
 def DisplayShopMenu():
+    print("\n----------------------- Shop Menu -------------------------")
+    if playerStats["pickaxe"] != 3:
+        print(f"(P)ickaxe upgrade to Level {playerStats['pickaxe'] + 1} to mine {pickaxeDetails[playerStats["pickaxe"] + 1][1]} ore for {pickaxeDetails[playerStats["pickaxe"] + 1][0]} GP")
+    print(f"(B)ackpack upgrade to carry {playerStats['backpack'] + 2} items for {playerStats['backpack'] * 2} GP")
+    print("(L)eave shop")
+    print("-----------------------------------------------------------")
+    print(f"GP:{playerStats["GP"]}")
+    print("-----------------------------------------------------------")
     return
+
+def UpgradePickaxe():
+    playerStats["pickaxe"] += 1
+    playerStats["GP"] -= pickaxeDetails[playerStats["pickaxe"]][0]
+    print(f"Congratulations! You can now mine {pickaxeDetails[playerStats["pickaxe"]][1]}!\n")
 
 def UpgradeBackpack():
-    return
+    playerStats["GP"] -= playerStats["backpack"] * 2
+    playerStats["backpack"] += 2
+    print(f"Congratulations! You can now carry {playerStats['backpack']} items!\n")
 
 def DisplayPlayerInformation():
+    print("\n----- Player Information -----")
+    print(f"Name: {playerStats['name']}")
+    #To be added
+    print(f"Portal position: ({playerStats['portal']})")
+    print(f"Pickaxe level: {playerStats['pickaxe']} ({pickaxeDetails[playerStats["pickaxe"]][1]})")
+    print("------------------------------")
+    print(f"Load: {playerStats["load"]} / {playerStats["backpack"]}")
+    print("------------------------------")
+    print(f"GP: {playerStats["GP"]}")
+    print(f"Steps taken: {playerStats["steps"]}")
+    print("------------------------------\n")
     return
 
 def DisplayMap():
-    return
+    for row in fogMap:
+        print()
+        for col in row:
+            if playerLocation == [row, col]:
+                print("T", end="")
+            elif playerStats["portal"] == [row, col]:
+                print("P", end="")
+            else:
+                print(col, end="")
 
 def DisplayMineMenu():
     return
@@ -40,11 +75,56 @@ def Move(movementInput):
 def UsePortalStone():
     return
 
+def SellOres(playerStats):
+    for i in range(playerStats["minerals"]["C"]):
+        playerStats["GP"] += randint(1, 3)
+    playerStats["minerals"]["C"] = 0
+
+    for i in range(playerStats["minerals"]["S"]):
+        playerStats["GP"] += randint(5, 8)
+    playerStats["minerals"]["S"] = 0
+
+    for i in range(playerStats["minerals"]["G"]):
+        playerStats["GP"] += randint(10, 18)
+    playerStats["minerals"]["G"] = 0
+
+def saveMap():
+    colCount = 0
+    fogRow = []
+    row = []
+    while True:
+        line = dataFile.readline()
+        if line.strip() == "":
+            break
+        for letter in line:
+            if colCount == 30:
+                break
+            fogRow.append("?")
+            row.append(letter)
+            colCount += 1
+        map.append(row)
+        fogMap.append(fogRow)
+    
+def clearFog():
+    clearCoordinates = []
+    #if playerLocation[0] == 0:
+
+
+
 #------------------------Variables------------------------
-#------------------------PlayerStats------------------------
+dataFile = open("level1.txt", "r")
+
+pickaxeDetails = {1: [0, "copper"], 2: [50, "silver"], 3: [150, "gold"]}
+playerLocation = [0, 0]
 playerChoice = ""
-playerStats = {"name": "", "Day": 0, }
+playerStats = {"name": "", "Day": 1, "GP": 0, "backpack": 10, 
+                       "steps": 0, "load": 0, "minerals": {"C": 0, "S": 0, "G": 0}, "pickaxe": 1, "portal": [-1, -1]}
+
+map = []
+fogMap = []
 #------------------------Game Program------------------------
+saveMap()
+print(map)
 
 while True:
     DisplayMainMenu()
@@ -57,13 +137,19 @@ while True:
     elif playerChoice == "L" or playerChoice == "l":
         LoadData()
     elif playerChoice == "N" or playerChoice == "n":
+        #Refresh Player's Stats (New Account)
+        playerStats = {"name": "", "Day": 1, "GP": 50, "backpack": 10, 
+                       "steps": 0, "load": 0, "minerals": {"C": 0, "S": 0, "G": 0}, "pickaxe": 1, "portal": [-1, -1]}
         playerStats["name"] = input("Greetings, miner! What is your name? ")
         print(f"Pleased to meet you, {playerStats["name"]}. Welcome to Sundrop Town!\n")
     else:
-        print("Inavalid Input, please")
+        print("Inavalid Input, please re-enter your choice\n")
+        continue
     
     while True:
-        playerStats["Day"] += 1
+        #------------------------Town Menu------------------------
+        SellOres(playerStats)
+
         DisplayTownMenu()
         playerChoice = input("Your Choice? ")
 
@@ -71,10 +157,26 @@ while True:
             #Back to main menu
             break
         elif playerChoice == "B" or playerChoice == "b":
-            DisplayShopMenu()
+
+            #------------------------Shop Menu------------------------
+            while True:
+                DisplayShopMenu()
+                playerChoice = input("Your Choice? ")
+
+                if (playerChoice == "p" or playerChoice == "P") and (playerStats["pickaxe"] != 3 and playerStats["GP"] >= pickaxeDetails[playerStats["pickaxe"] + 1][0]):
+                    UpgradePickaxe()
+                elif (playerChoice == "B" or playerChoice == "b") and (playerStats["GP"] > playerStats['backpack'] * 2):
+                    UpgradeBackpack()
+                elif playerChoice == "L" or playerChoice == "l":
+                    print()
+                    break
+                else:
+                    print("Invalid input or Not enough GP!\n")
+
         elif playerChoice == "I" or playerChoice == "i":
             DisplayPlayerInformation()
         elif playerChoice == "V" or playerChoice == "v":
+            #TBA
             SaveData()
         elif playerChoice == "E" or playerChoice == "e":
             DisplayMineMenu()
