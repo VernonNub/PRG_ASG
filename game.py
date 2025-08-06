@@ -56,15 +56,21 @@ def DisplayPlayerInformation():
     return
 
 def DisplayMap():
+    coordinates = [0, 0]
     for row in fogMap:
-        print()
+        print("|", end="")
         for col in row:
-            if playerLocation == [row, col]:
-                print("T", end="")
-            elif playerStats["portal"] == [row, col]:
+            if coordinates == playerLocation:
+                print("M", end="")
+            elif playerStats["portal"] == coordinates:
                 print("P", end="")
             else:
                 print(col, end="")
+            
+            coordinates[0] += 1
+        print("", end="|\n")
+        coordinates[1] += 1
+        coordinates[0] = 0
 
 def DisplayMineMenu():
     return
@@ -89,16 +95,18 @@ def SellOres(playerStats):
     playerStats["minerals"]["G"] = 0
 
 def saveMap():
-    colCount = 0
-    fogRow = []
-    row = []
     while True:
+        colCount = 0
+        fogRow = []
+        row = []
         line = dataFile.readline()
         if line.strip() == "":
             break
         for letter in line:
             if colCount == 30:
                 break
+            if letter == "\n":
+                letter = " "
             fogRow.append("?")
             row.append(letter)
             colCount += 1
@@ -106,16 +114,42 @@ def saveMap():
         fogMap.append(fogRow)
     
 def clearFog():
-    clearCoordinates = []
-    #if playerLocation[0] == 0:
+    clearCoordinates = {"U": [playerLocation[0], playerLocation[1]-1], 
+                        "B": [playerLocation[0], playerLocation[1]+1], 
+                        "UR": [playerLocation[0]+1, playerLocation[1]-1], 
+                        "UL": [playerLocation[0]-1, playerLocation[1]-1], 
+                        "BR": [playerLocation[0] + 1, playerLocation[1]+1], 
+                        "BL": [playerLocation[0] - 1, playerLocation[1]+1], 
+                        "L": [playerLocation[0] - 1, playerLocation[1]], 
+                        "R": [playerLocation[0] + 1, playerLocation[1]]}
 
+    #Dont need clear since on the end! (No fog!)
+    if playerLocation[0] == 0:
+        clearCoordinates["UL"] = playerLocation
+        clearCoordinates["BL"] = playerLocation
+        clearCoordinates["L"] = playerLocation
+    elif playerLocation[0] == 29:
+        clearCoordinates["UR"] = playerLocation
+        clearCoordinates["BR"] = playerLocation
+        clearCoordinates["R"] = playerLocation
+    elif playerLocation[1] == 0:
+        clearCoordinates["UL"] = playerLocation
+        clearCoordinates["UR"] = playerLocation
+        clearCoordinates["U"] = playerLocation
+    elif playerLocation[1] == 9:
+        clearCoordinates["BR"] = playerLocation
+        clearCoordinates["BL"] = playerLocation
+        clearCoordinates["B"] = playerLocation
+    
+    for fogs in clearCoordinates.values():
+        fogMap[fogs[1]][fogs[0]] = map[fogs[1]][fogs[0]]
 
 
 #------------------------Variables------------------------
 dataFile = open("level1.txt", "r")
 
 pickaxeDetails = {1: [0, "copper"], 2: [50, "silver"], 3: [150, "gold"]}
-playerLocation = [0, 0]
+playerLocation = [10, 5]
 playerChoice = ""
 playerStats = {"name": "", "Day": 1, "GP": 0, "backpack": 10, 
                        "steps": 0, "load": 0, "minerals": {"C": 0, "S": 0, "G": 0}, "pickaxe": 1, "portal": [-1, -1]}
@@ -124,7 +158,8 @@ map = []
 fogMap = []
 #------------------------Game Program------------------------
 saveMap()
-print(map)
+clearFog()
+DisplayMap()
 
 while True:
     DisplayMainMenu()
