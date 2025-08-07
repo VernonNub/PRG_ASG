@@ -57,9 +57,12 @@ def UpgradeBackpack():
 def DisplayPlayerInformation():
     print("\n----- Player Information -----")
     print(f"Name: {playerStats['name']}")
-    #To be added
-    print(f"Portal position: ({playerStats['portal']})")
+    print(f"Current position: {playerLocation}")
     print(f"Pickaxe level: {playerStats['pickaxe']} ({pickaxeDetails[playerStats["pickaxe"]][1]})")
+    print(f"Gold: {playerStats['minerals']["G"]}")
+    print(f"Silver: {playerStats['minerals']["S"]}")
+    print(f"Copper: {playerStats['minerals']["C"]}")
+    print(f"Portal position: ({playerStats['portal']})")
     print("------------------------------")
     print(f"Load: {playerStats["load"]} / {playerStats["backpack"]}")
     print("------------------------------")
@@ -99,28 +102,44 @@ def DisplayMap():
     print("+------------------------------+\n")
 
 def DisplayMineMenu():
-    return
+    print(f"Day {playerStats['Day']}")
+    DisplayMiniMap()
+    print(f"Turns left: {playerTurns} Load: {playerStats['load']} / {playerStats['backpack']} Steps: {playerStats["steps"]}")
+    print("(WASD) to move")
+    print("(M)ap, (I)nformation, (P)ortal, (Q)uit to main menu")
 
 def Move(movementInput):
     return
 
-def UsePortalStone():
-    return
+def UsePortalStone(playerTurns):
+    playerStats["portal"] = playerLocation
+    playerStats["Day"] += 1
+    playerTurns = 20
+    return playerTurns
 
 def SellOres(playerStats):
     #Sells each ore by generating a random price for each ore based on the amount of the ore the player has in his bag
-    for i in range(playerStats["minerals"]["C"]):
-        playerStats["GP"] += randint(1, 3)
+    orePrices[0] = randint(1, 3)
+    if playerStats["minerals"]["C"] > 0:
+        print(f"You sell {playerStats["minerals"]["C"]} gold ore for {playerStats["minerals"]["C"] * orePrices[0]} GP.")
+        print(f"You now have {playerStats["GP"] + playerStats["minerals"]["C"] * orePrices[0]} GP!")
+    playerStats["GP"] += playerStats["minerals"]["C"] * orePrices[0]
     playerStats["minerals"]["C"] = 0
 
     #Sells each ore by generating a random price for each ore based on the amount of the ore the player has in his bag
-    for i in range(playerStats["minerals"]["S"]):
-        playerStats["GP"] += randint(5, 8)
+    orePrices[0] = randint(5, 8)
+    if playerStats["minerals"]["S"] > 0:
+        print(f"You sell {playerStats["minerals"]["S"]} gold ore for {playerStats["minerals"]["S"] * orePrices[1]} GP.")
+        print(f"You now have {playerStats["GP"] + playerStats["minerals"]["S"] * orePrices[1]} GP!")
+    playerStats["GP"] += playerStats["minerals"]["S"] * orePrices[1]
     playerStats["minerals"]["S"] = 0
 
     #Sells each ore by generating a random price for each ore based on the amount of the ore the player has in his bag
-    for i in range(playerStats["minerals"]["G"]):
-        playerStats["GP"] += randint(10, 18)
+    orePrices[0] = randint(10, 18)
+    if playerStats["minerals"]["G"] > 0:
+        print(f"You sell {playerStats["minerals"]["G"]} gold ore for {playerStats["minerals"]["G"] * orePrices[2]} GP.")
+        print(f"You now have {playerStats["GP"] + playerStats["minerals"]["G"] * orePrices[2]} GP!")
+    playerStats["GP"] += playerStats["minerals"]["G"] * orePrices[2]
     playerStats["minerals"]["G"] = 0
 
 #Collect Map from .txt file and save in nested lists, where each element is the rows which contains a list of all elements
@@ -265,16 +284,23 @@ pickaxeDetails = {1: [0, "copper"], 2: [50, "silver"], 3: [150, "gold"]}
 
 #Player Stats
 #track player location for everything (Map location etc)
-playerLocation = [20, 3]
-
+playerLocation = [0, 0]
+nextLocation = [0, 0]
+#Easy access to access movement without the need of to many if-else
+playerMovementKeys = "WwSsAaDd"
 #Save choice for all interactions for easy if else statements
 playerChoice = ""
+playerTurns = 20
+
+orePrices = [0, 0, 0]
+
+nodePieces = 0
 
 #All of player stats to be accessed
 playerStats = {"name": "", 
                "Day": 1, 
                "GP": 0, 
-               "backpack": 10, 
+               "backpack": 2, 
                "steps": 0, 
                "load": 0, 
                "minerals": {"C": 0, "S": 0, "G": 0}, 
@@ -284,7 +310,8 @@ playerStats = {"name": "",
 #Map layout for true map and fog
 map = []
 fogMap = []
-
+mapWidth = 10
+mapLenth = 30
 #------------------------Game Program------------------------
 
 
@@ -312,7 +339,7 @@ while True:
         print(f"Pleased to meet you, {playerStats["name"]}. Welcome to Sundrop Town!\n")
     else:
         #Invalid inputs redirects back to display main menu again
-        print("Inavalid Input, please re-enter your choice\n")
+        print("Invalid Input, please re-enter your choice\n")
         continue
     
     while True:
@@ -347,13 +374,128 @@ while True:
         #Handles action based on inputs using if-else, more info check functions on what they do
         elif playerChoice == "I" or playerChoice == "i":
             DisplayPlayerInformation()
+            continue
         elif playerChoice == "V" or playerChoice == "v":
             #TBA
             SaveData()
         elif playerChoice == "E" or playerChoice == "e":
-            DisplayMineMenu()
+            #------------------------Mine Menu------------------------
+            print("---------------------------------------------------")
+            print(f"{"Day " + str(playerStats['Day']):^50}")
+            print("---------------------------------------------------")
+
+            while True:
+                if playerTurns == 0:
+                    print("You are exhausted.")
+                    print("You place your portal stone here and zap back to town.")
+                    playerTurns = UsePortalStone(playerTurns)
+                    print(playerTurns)
+                    break
+
+                DisplayMineMenu()
+
+                playerChoice = input("Action? ")
+
+                #Actions for each option, described in each functions
+                if playerChoice == "M" or playerChoice == "m":
+                    print()
+                    DisplayMap()
+                elif playerChoice == "I" or playerChoice == "i":
+                    print()
+                    DisplayPlayerInformation()
+                elif playerChoice == "P" or playerChoice == "p":
+                    playerTurns = UsePortalStone(playerTurns)
+                    break
+                elif playerChoice == "Q" or playerChoice == "q":
+                    #break out of loop to go back to menu loop
+                    print()
+                    break
+                elif playerChoice in playerMovementKeys:
+                    playerStats["steps"] += 1
+                    playerTurns -= 1
+
+                    nextLocation = playerLocation.copy()
+                    print("---------------------------------------------------")
+                    if playerChoice == "W" or playerChoice == "w":
+                        if playerLocation[1] == 0:
+                            print("Theres a wall, so you can't go that way.")
+                            continue
+                        else:
+                            nextLocation[1] -= 1
+                    elif playerChoice == "S" or playerChoice == "s":
+                        if playerLocation[1] == mapWidth - 1:
+                            print("Theres a wall, so you can't go that way.")
+                            continue
+                        else:
+                            nextLocation[1] += 1
+                    elif playerChoice == "a" or playerChoice == "A":
+                        if playerLocation[0] == 0:
+                            print("Theres a wall, so you can't go that way.")
+                            continue
+                        else:
+                            nextLocation[0] -= 1
+                    elif playerChoice == "d" or playerChoice == "D":
+                        if playerLocation[0] == mapLenth - 1:
+                            print("Theres a wall, so you can't go that way.")
+                            continue
+                        else:
+                            nextLocation[0] += 1
+                    
+                    if map[nextLocation[1]][nextLocation[0]] != " " and playerStats["load"] == playerStats["backpack"]:
+                        print(playerLocation)
+                        print("You can't carry any more, so you can't go that way.")
+                        print("Yes")
+                        continue
+                    else:
+                        if map[nextLocation[1]][nextLocation[0]] == "C":
+                            nodePieces = randint(1, 5)
+                            if playerStats["backpack"] - playerStats["load"] < nodePieces:
+                                print(f"You mined {nodePieces} piece(s) of copper.")
+                                print(f"...but you can only carry {playerStats["backpack"] - playerStats["load"]} more piece(s)!")
+                                playerStats["load"] += playerStats["backpack"] - playerStats["load"]
+                                playerStats["minerals"]["C"] += playerStats["backpack"] - playerStats["load"]
+                            else:
+                                playerStats["load"] += nodePieces
+                                playerStats["minerals"]["C"] += nodePieces
+                        elif map[nextLocation[1]][nextLocation[0]] == "S":
+                            if playerStats["pickaxe"] != 2:
+                                print("Your pickaxe is not high level enough")
+                                continue
+                            else:
+                                nodePieces = randint(1, 3)
+                                if playerStats["backpack"] - playerStats["load"] < nodePieces:
+                                    print(f"You mined {nodePieces} piece(s) of silver.")
+                                    print(f"...but you can only carry {playerStats["backpack"] - playerStats["load"]} more piece(s)!")
+                                    playerStats["load"] += playerStats["backpack"] - playerStats["load"]
+                                    playerStats["minerals"]["S"] += playerStats["backpack"] - playerStats["load"]
+                                else:
+                                    playerStats["load"] += nodePieces
+                                    playerStats["minerals"]["S"] += nodePieces
+                        elif map[nextLocation[1]][nextLocation[0]] == "G":
+                            if playerStats["pickaxe"] != 3:
+                                print("Your pickaxe is not high level enough")
+                                continue
+                            else:
+                                nodePieces = randint(1, 2)
+                                if playerStats["backpack"] - playerStats["load"] < nodePieces:
+                                    print(f"You mined {nodePieces} piece(s) of gold.")
+                                    print(f"...but you can only carry {playerStats["backpack"] - playerStats["load"]} more piece(s)!")
+                                    playerStats["load"] += playerStats["backpack"] - playerStats["load"]
+                                    playerStats["minerals"]["G"] += playerStats["backpack"] - playerStats["load"]
+                                else:
+                                    playerStats["load"] += nodePieces
+                                    playerStats["minerals"]["G"] += nodePieces
+
+                        map[playerLocation[1]][playerLocation[0]] = " "
+                        playerLocation = nextLocation
+                        ClearFog()
+
         elif playerChoice == "M" or playerChoice == "m":
             DisplayMap()
             continue
         else:
-            print("Inavalid Input, please re-enter your choice")
+            print("Invalid Input, please re-enter your choice")
+
+        if playerChoice == "Q" or playerChoice == "q":
+            #To mainmenu in event of leaving during mining
+            break
