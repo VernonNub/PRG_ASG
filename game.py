@@ -10,16 +10,52 @@ def DisplayMainMenu():
     print("How quickly can you get the 500 GP you need to retire")
     print("  and live happily ever after?")
     print("-----------------------------------------------------------\n")
-    print("--- Main Menu ----\n(N)ew game\n(L)oad saved game\n(Q)uit\n------------------")
+    print("--- Main Menu ----\n(N)ew game\n(L)oad saved game\n(V)iew LeaderBoard\n(Q)uit\n------------------")
 
 def DisplayTownMenu():
     print(f"DAY {playerStats['Day']}\n----- Sundrop Town -----\n(B)uy stuff\nSee Player (I)nformation\nSee Mine (M)ap\n(E)nter mine\nSa(V)e game\n(Q)uit to main menu\n------------------------")
 
 def SaveData():
-    return
+    global currentSaveFile
+    
+    dataFile = open(saveFileName+str(currentSaveFile)+".txt", "w")
+    mapFile = open("map"+str(currentSaveFile)+".txt", "w")
 
-def LoadData():
-    return
+    saveFileDays.append(playerStats["Day"])
+    for stat in playerStats.keys():
+        dataFile.write(f"{stat}, {playerStats[stat]}\n")
+    
+    for row in fogMap:
+        for col in row:
+            mapFile.write(col)
+        mapFile.write("\n")
+
+    dataFile.write(f"map, {fogMap}\n")
+    dataFile.write(f"location, {playerLocation}\n")
+
+def LoadData(fileNumber):
+    dataFile = open(saveFileName+str(fileNumber)+".txt", "r")
+    
+    global fogMap
+    global playerLocation
+
+    while True:
+        variable = dataFile.readline().strip().split(", ", 1)
+        if variable == [""]:
+            break
+        
+        if variable[0] == "location":
+            playerLocation = eval(variable[1])
+        elif variable[0] in integerStats:
+            playerStats[variable[0]] = eval(variable[1])
+        elif variable[0] == "map":
+            fogMap = eval(variable[1])
+        elif variable[0] == "portal":
+            playerStats[variable[0]] = eval(variable[1])
+        elif variable[0] == "minerals":
+            playerStats[variable[0]] = eval(variable[1])
+        else:
+            playerStats[variable[0]] = variable[1]
 
 def DisplayShopMenu():
     #Print out the UI for the Menu
@@ -76,10 +112,24 @@ def DisplayMap():
     print("+------------------------------+")
 
     #Coordinates of current print to check if playerlocation or if portal is there to override the map
-    coordinates = [0, 0]
+    skipCount = 0
+    coordinates = [2, 2]
     for row in fogMap:
+        if skipCount < 2:
+            skipCount += 1
+            continue
+        if coordinates[1] >= mapWidth:
+            break
         print("|", end="")
+        skipCount = 0
+
         for col in row:
+            if skipCount < 2:
+                skipCount += 1
+                continue
+            
+            if coordinates[0] >= mapLength + 2:
+                break
             #Check if player is on the coordinates to print "M" instead
             if coordinates == playerLocation:
                 print("M", end="")
@@ -96,7 +146,7 @@ def DisplayMap():
         #Increment
         coordinates[1] += 1
         #Reset as it is a new row
-        coordinates[0] = 0
+        coordinates[0] = 2
 
     #Map Border
     print("+------------------------------+\n")
@@ -108,56 +158,121 @@ def DisplayMineMenu():
     print("(WASD) to move")
     print("(M)ap, (I)nformation, (P)ortal, (Q)uit to main menu")
 
-def Move(movementInput):
-    return
+def CheckArea(movementInput):
+    global playerLocation
+    global playerStats
+    global playerTurns
+    global playerChoice
+    global nextLocation
 
-def UsePortalStone(playerTurns):
+    playerStats["steps"] += 1
+
+    playerTurns -= 1
+
+    nextLocation = playerLocation.copy()
+
+    if playerChoice == "":
+        print("Invalid Input, please re-enter")
+        return False
+    
+    for i in range(len(playerLocation)):
+        nextLocation[i] += movements[playerChoice.lower()][i]
+    
+    if map[nextLocation[1]][nextLocation[0]] == "#":
+        print("Theres a wall, so you can't go that way.")
+        return False
+                    
+def Move(movementInput):
+    global nextLocation
+    global movements
+    global playerLocation
+    global map
+
+    if map[nextLocation[1]][nextLocation[0]] != " ":
+        if playerStats["load"] == playerStats["backpack"]:
+            print("You can't carry any more, so you can't go that way.")  
+        elif playerStats["pickaxe"] < oreDescription[map[nextLocation[1]][nextLocation[0]]][4]:
+            print("Your pickaxe level is too low, so you can't go that way to mine the ore.") 
+        else:
+            MineOre(map[nextLocation[1]][nextLocation[0]])
+            playerLocation = nextLocation
+    else:
+        playerLocation = nextLocation
+    
+    print(map[playerLocation[1]][playerLocation[0]])
+    map[playerLocation[1]][playerLocation[0]] = " "
+    ClearFog()
+
+def MineOre(ore):
+    global playerStats
+    global oreDescription
+
+    nodeOresNo = randint(oreDescription[ore][0], oreDescription[ore][1])
+
+    if playerStats["backpack"] - playerStats["load"] < nodeOresNo:
+        print(f"You mined {nodeOresNo} piece(s) of {ore}.")
+        print(f"...but you can only carry {playerStats["backpack"] - playerStats["load"]} more piece(s)!")
+    
+    playerStats["minerals"][ore] += min(nodeOresNo, (playerStats["backpack"] - playerStats["load"]))
+    playerStats["load"] += min(nodeOresNo, (playerStats["backpack"] - playerStats["load"]))
+
+def UsePortalStone():
+    global playerTurns
+
     playerStats["portal"] = playerLocation
     playerStats["Day"] += 1
+    print(playerTurns)
     playerTurns = 20
-    return playerTurns
+    print(playerTurns)
 
-def SellOres(playerStats):
-    #Sells each ore by generating a random price for each ore based on the amount of the ore the player has in his bag
-    orePrices[0] = randint(1, 3)
-    if playerStats["minerals"]["C"] > 0:
-        print(f"You sell {playerStats["minerals"]["C"]} gold ore for {playerStats["minerals"]["C"] * orePrices[0]} GP.")
-        print(f"You now have {playerStats["GP"] + playerStats["minerals"]["C"] * orePrices[0]} GP!")
-    playerStats["GP"] += playerStats["minerals"]["C"] * orePrices[0]
-    playerStats["minerals"]["C"] = 0
+def SellOres():
+    global orePrices
 
-    #Sells each ore by generating a random price for each ore based on the amount of the ore the player has in his bag
-    orePrices[0] = randint(5, 8)
-    if playerStats["minerals"]["S"] > 0:
-        print(f"You sell {playerStats["minerals"]["S"]} gold ore for {playerStats["minerals"]["S"] * orePrices[1]} GP.")
-        print(f"You now have {playerStats["GP"] + playerStats["minerals"]["S"] * orePrices[1]} GP!")
-    playerStats["GP"] += playerStats["minerals"]["S"] * orePrices[1]
-    playerStats["minerals"]["S"] = 0
+    count = 0
 
-    #Sells each ore by generating a random price for each ore based on the amount of the ore the player has in his bag
-    orePrices[0] = randint(10, 18)
-    if playerStats["minerals"]["G"] > 0:
-        print(f"You sell {playerStats["minerals"]["G"]} gold ore for {playerStats["minerals"]["G"] * orePrices[2]} GP.")
-        print(f"You now have {playerStats["GP"] + playerStats["minerals"]["G"] * orePrices[2]} GP!")
-    playerStats["GP"] += playerStats["minerals"]["G"] * orePrices[2]
-    playerStats["minerals"]["G"] = 0
+    for ore in playerStats["minerals"].keys():
+        orePrices[count] = randint(oreDescription[ore][2], oreDescription[ore][3])
+        if playerStats["minerals"][ore] > 0:
+            print(f"You sell {playerStats["minerals"][ore]} {oreDescription[ore][5]} ore for {playerStats["minerals"][ore] * orePrices[count]} GP.")
+            playerStats["GP"] += playerStats["minerals"][ore] * orePrices[count]
+            playerStats["minerals"][ore] = 0
+            playerStats["load"] = 0
+            print(f"You now have {playerStats["GP"]} GP!")
+        
+        count += 1
 
 #Collect Map from .txt file and save in nested lists, where each element is the rows which contains a list of all elements
 def saveMap():
+    global map
+    global fogMap
+    
+    dataFile = open("level1.txt","r")
+    fogRow = []
+    row = []
+
+    map, fogMap = [], []
+    for i in range(mapLength + 4):
+        row.append("#")
+    map.extend([row, row])
+    fogMap.extend([row, row])
+
+    fogMap = map.copy()
     while True:
+        fogRow = []
+        row = []
         #Count the amount of element per row, since cant use .strip(), there will be extra spaces which may not be part of the map
         colCount = 0
         #Used for keeping each row for both maps
-        fogRow = []
-        row = []
+        row.extend(["#", "#"])
 
-        #Read each line in dataFile
+        fogRow = row.copy()
+        #Read each line in 
         line = dataFile.readline()
         if line.strip() == "":
             break
         for letter in line:
             #Max amount of element per row since map is 30 col 10 row
-            if colCount == 30:
+            if colCount == mapLength:
                 break
             #If there is a glitch and not enough inserted col, \n will be use (First line only had 29 cols while others had 30)
             if letter == "\n":
@@ -171,12 +286,29 @@ def saveMap():
             #Increment
             colCount += 1
 
+        row.extend(["#", "#"])
+        fogRow.extend(["#", "#"])
         #Add the row to map
         map.append(row)
         #Same here
         fogMap.append(fogRow)
-    
+
+    row = []
+    for i in range(mapLength + 4):
+        row.append("#")
+    map.extend([row, row])
+    fogMap.extend([row, row])
+    row = []
+
+    for i in range(mapLength + 4):
+        row.append("#")
+    map.extend([row, row])
+    fogMap.extend([row, row])
+
 def ClearFog():
+    global fogMap
+    global map
+
     #Saves every coordinate to be cleared in the fog (U stands for upper, B for bottom, L for left and R for right)
     clearCoordinates = {"U": [playerLocation[0], playerLocation[1]-1], 
                         "B": [playerLocation[0], playerLocation[1]+1], 
@@ -186,25 +318,7 @@ def ClearFog():
                         "BL": [playerLocation[0] - 1, playerLocation[1]+1], 
                         "L": [playerLocation[0] - 1, playerLocation[1]], 
                         "R": [playerLocation[0] + 1, playerLocation[1]]}
-
-    #Dont need clear since on the end! (No fog!) so uses player location (Should already be cleared)
-    if playerLocation[0] == 0:
-        clearCoordinates["UL"] = playerLocation
-        clearCoordinates["BL"] = playerLocation
-        clearCoordinates["L"] = playerLocation
-    if playerLocation[0] == 29:
-        clearCoordinates["UR"] = playerLocation
-        clearCoordinates["BR"] = playerLocation
-        clearCoordinates["R"] = playerLocation
-    if playerLocation[1] == 0:
-        clearCoordinates["UL"] = playerLocation
-        clearCoordinates["UR"] = playerLocation
-        clearCoordinates["U"] = playerLocation
-    if playerLocation[1] == 9:
-        clearCoordinates["BR"] = playerLocation
-        clearCoordinates["BL"] = playerLocation
-        clearCoordinates["B"] = playerLocation
-
+    
     #Clear each fog by replacing "?" with true map value
     for fogs in clearCoordinates.values():
         fogMap[fogs[1]][fogs[0]] = map[fogs[1]][fogs[0]]
@@ -216,78 +330,73 @@ def DisplayMiniMap():
 
     #Border
     print("+---+")
-
-    #If is at the top --> print 3 # for the top edge and put the starting to 0 (Prevent printing incorrect values , -1 will get value on the end of list)
-    if yDisplay[0] < 0:
-        yDisplay[0] = 0
-        print("|###|")
-
-    if yDisplay[1] > 9:
-        yDisplay[1] = 9
-    
-    #if is at the most right, print # at the start for right edge wall and put starting to 0 (Prevent printing incorrect values)
-    if xDisplay[0] < 0:
-        xDisplay[0] = 0
-
-        #for i in range will get the row position (e.g. 0 to 2 if y is 0 which prints first 2 row (Since the rop is a wall))
-        #Need to add 1 to the end since in range stops before the end value
-        for i in range(yDisplay[0], yDisplay[1]+1):
-            print("|#", end="")
-
-            #for in range will get the col position (e.g. 0 to 2 if x is 0 which will go after the "|#" since the side is a wall)
-            #Need to add 1 to the end since in range stops before the end value
-            for f in range(xDisplay[0], xDisplay[1]+1):
-                #place player in middle
-                if[f, i] == playerLocation:
-                    print("M", end="")
-                    continue
+    for i in range(yDisplay[0], yDisplay[1]+1):
+        print("|", end="")
+        for f in range(xDisplay[0], xDisplay[1]+1):
+            #place player in middle
+            if[f, i] == playerLocation:
+                print("M", end="")
+                continue
+            if[f, i] == playerStats["portal"]:
+                print("M", end="")
+                continue
+            else:
                 print(fogMap[i][f], end="")
-            print("|", end="\n")
-    #Same as above but with the wall behind instead
-    elif xDisplay[1] > 29:
-        xDisplay[1] = 29
-        for i in range(yDisplay[0], yDisplay[1] + 1):
-            print("|", end="")
-            for f in range(xDisplay[0], xDisplay[1]+1):
-                #place player in middle
-                if[f, i] == playerLocation:
-                    print("M", end="")
-                    continue
-                print(fogMap[i][f], end="")
-            print("#|", end="\n")
-    #Same as above but without the wall
-    else:
-        for i in range(yDisplay[0], yDisplay[1]+1):
-            print("|", end="")
-            for f in range(xDisplay[0], xDisplay[1]+1):
-                #place player in middle
-                if[f, i] == playerLocation:
-                    print("M", end="")
-                    continue
-                print(fogMap[i][f], end="")
-            print("|", end="\n")
-    
-    #Since we altered the ydisplay, if the location is 8 then the ending 
-    #would also be 9 which will print ### so instead we use the players location to determine the need for bottom wall
-    if playerLocation[1] + 1 > 9:
-        print("|###|")
+        print("|", end="\n")
     #Border
     print("+---+\n")
 
+#Holds the number of save files and leaderboard
+def LoadLocalSave():
+    global leaderboard
+    global currentSaveFile
+    global saveFileDays
+    dataFile = open("LocalSaveData.txt", "r")
+
+    leaderboard = []
+    while True:
+        line = dataFile.readline().strip().split(", ")
+
+        if line == [""]:
+            break
+        elif line[0] == "FileNo":
+            currentSaveFile = int(line[1]) + 1
+        elif "FileDay" in line[0]:
+            saveFileDays.append(int(line[1]))
+        else:
+            line[3] = line[3].replace(",", "")
+            leaderboard.append(line)
+
+def SaveLocalSave():
+    global leaderboard
+    dataFile = open("LocalSaveData.txt", "w")
+
+    dataFile.write(f"FileNo, {currentSaveFile}\n")
+    for i in range(len(saveFileDays)):
+        dataFile.write(f"FileDay{i + 1}, {saveFileDays[i]}\n")
+    for player in leaderboard:
+        for stat in player:
+            dataFile.write(str(stat) + ", ")
+        dataFile.write("\n")
+    
+
 #------------------------Variables------------------------
-#Map DataFile
-dataFile = open("level1.txt", "r")
+saveFileName = "saveFile"
+currentSaveFile = 1
+saveFileDays = []
 
 #Game Item Stats
 #Pickaxe details index 1 is price and 2 is unlocked ore
 pickaxeDetails = {1: [0, "copper"], 2: [50, "silver"], 3: [150, "gold"]}
+oreDescription = {"C": [1, 5, 1, 3, 1, "Copper"], "S": [1, 3, 5, 8, 2, "Silver"], "G": [1, 2, 10, 18, 3, "Gold"]}
 
 #Player Stats
 #track player location for everything (Map location etc)
-playerLocation = [0, 0]
-nextLocation = [0, 0]
+playerLocation = [2, 2]
+nextLocation = [2, 2]
 #Easy access to access movement without the need of to many if-else
 playerMovementKeys = "WwSsAaDd"
+movements = {"w": [0, -1],  "s": [0, 1], "a": [-1, 0], "d":[1, 0] }
 #Save choice for all interactions for easy if else statements
 playerChoice = ""
 playerTurns = 20
@@ -296,11 +405,14 @@ orePrices = [0, 0, 0]
 
 nodePieces = 0
 
+leaderboard = []
+
+integerStats = ["Day", "GP", "backpack", "steps", "load", "pickaxe"]
 #All of player stats to be accessed
 playerStats = {"name": "", 
                "Day": 1, 
-               "GP": 0, 
-               "backpack": 2, 
+               "GP": 500, 
+               "backpack": 10, 
                "steps": 0, 
                "load": 0, 
                "minerals": {"C": 0, "S": 0, "G": 0}, 
@@ -311,9 +423,11 @@ playerStats = {"name": "",
 map = []
 fogMap = []
 mapWidth = 10
-mapLenth = 30
+mapLength = 30
 #------------------------Game Program------------------------
-
+#Creates map which fogmap will be override if player has save data
+saveMap()
+LoadLocalSave()
 
 while True:
     DisplayMainMenu()
@@ -324,19 +438,46 @@ while True:
         #Exit out program
         break
     elif playerChoice == "L" or playerChoice == "l":
-        #To be added
-        LoadData()
+        LoadLocalSave()
+        for i in range(currentSaveFile - 1):
+            print(f"Data File Number {i + 1} --- {saveFileDays[i]} Days progress")
+        while True:
+            playerChoice = input("Enter the file save to load: ")
+            if playerChoice.isdigit() == True:
+                break
+            else:
+                print("Invalid input, re-enter your choice")
+                continue
+
+        LoadData(playerChoice)
     elif playerChoice == "N" or playerChoice == "n":
         #Refresh Player's Stats (New Account)
-        #Creates new map for player using level1.txt
-        saveMap()
+        playerStats = {"name": "", 
+               "Day": 1, 
+               "GP": 0, 
+               "backpack": 10, 
+               "steps": 0, 
+               "load": 0, 
+               "minerals": {"C": 0, "S": 0, "G": 0}, 
+               "pickaxe": 1, 
+               "portal": [-1, -1]}
+        playerTurns = 20
+        playerLocation = [2, 2]
 
+        saveMap()
         #Clears starting fog around player
         ClearFog()
 
         #Collects player name to store
         playerStats["name"] = input("Greetings, miner! What is your name? ")
         print(f"Pleased to meet you, {playerStats["name"]}. Welcome to Sundrop Town!\n")
+    elif playerChoice.lower() == "v":
+        LBposition = 1
+        print("Top players are:")
+        for player in leaderboard:
+            print(f"{LBposition}. {player[0]} - Days taken: {player[1]}, Steps taken: {player[2]}, GP earned: {player[3]}")
+            LBposition += 1
+        continue
     else:
         #Invalid inputs redirects back to display main menu again
         print("Invalid Input, please re-enter your choice\n")
@@ -344,7 +485,42 @@ while True:
     
     while True:
         #------------------------Town Menu------------------------
-        SellOres(playerStats)
+        SellOres()
+        if playerStats["GP"] >= 500:
+            print(f"Woo-hoo! Well done, {playerStats['name']}, you have {playerStats['GP']} GP!")
+            print("You now have enough to retire and play video games every day.")
+            print(f"And it only took you {playerStats['Day']} days and {playerStats["steps"]} steps! You win!")
+
+            position = 0
+            print(leaderboard)
+            if leaderboard == []:
+                leaderboard.append([playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
+            else:
+                for player in leaderboard:
+                    if int(player[1]) > playerStats["Day"]:
+                        leaderboard.insert(position, [playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
+                        if len(leaderboard) > 5:
+                            leaderboard.pop(-1)
+                            break
+                    elif int(player[1]) == playerStats["Day"]:
+                        if int(player[2]) > playerStats["steps"]:
+                            leaderboard.insert(position, [playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
+                            if len(leaderboard) > 5:
+                                leaderboard.pop(-1)
+                            break
+                        elif int(player[2]) == playerStats["steps"]:
+                            if int(player[3]) < playerStats["GP"]:
+                                leaderboard.insert(position, [playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
+                                if len(leaderboard) > 5:
+                                    leaderboard.pop(-1)
+                                break
+
+                    if position + 1 == len(leaderboard) and len(leaderboard) < 5:
+                        leaderboard.append([playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
+                        break
+                    position += 1
+            SaveLocalSave()
+            break
 
         DisplayTownMenu()
         playerChoice = input("Your Choice? ")
@@ -378,6 +554,9 @@ while True:
         elif playerChoice == "V" or playerChoice == "v":
             #TBA
             SaveData()
+            SaveLocalSave()
+            currentSaveFile += 1
+            break
         elif playerChoice == "E" or playerChoice == "e":
             #------------------------Mine Menu------------------------
             print("---------------------------------------------------")
@@ -388,8 +567,7 @@ while True:
                 if playerTurns == 0:
                     print("You are exhausted.")
                     print("You place your portal stone here and zap back to town.")
-                    playerTurns = UsePortalStone(playerTurns)
-                    print(playerTurns)
+                    UsePortalStone()
                     break
 
                 DisplayMineMenu()
@@ -404,92 +582,20 @@ while True:
                     print()
                     DisplayPlayerInformation()
                 elif playerChoice == "P" or playerChoice == "p":
-                    playerTurns = UsePortalStone(playerTurns)
+                    UsePortalStone()
                     break
                 elif playerChoice == "Q" or playerChoice == "q":
                     #break out of loop to go back to menu loop
                     print()
                     break
                 elif playerChoice in playerMovementKeys:
-                    playerStats["steps"] += 1
-                    playerTurns -= 1
-
-                    nextLocation = playerLocation.copy()
                     print("---------------------------------------------------")
-                    if playerChoice == "W" or playerChoice == "w":
-                        if playerLocation[1] == 0:
-                            print("Theres a wall, so you can't go that way.")
-                            continue
-                        else:
-                            nextLocation[1] -= 1
-                    elif playerChoice == "S" or playerChoice == "s":
-                        if playerLocation[1] == mapWidth - 1:
-                            print("Theres a wall, so you can't go that way.")
-                            continue
-                        else:
-                            nextLocation[1] += 1
-                    elif playerChoice == "a" or playerChoice == "A":
-                        if playerLocation[0] == 0:
-                            print("Theres a wall, so you can't go that way.")
-                            continue
-                        else:
-                            nextLocation[0] -= 1
-                    elif playerChoice == "d" or playerChoice == "D":
-                        if playerLocation[0] == mapLenth - 1:
-                            print("Theres a wall, so you can't go that way.")
-                            continue
-                        else:
-                            nextLocation[0] += 1
-                    
-                    if map[nextLocation[1]][nextLocation[0]] != " " and playerStats["load"] == playerStats["backpack"]:
-                        print(playerLocation)
-                        print("You can't carry any more, so you can't go that way.")
-                        print("Yes")
+                    if CheckArea(playerChoice) == False:
                         continue
                     else:
-                        if map[nextLocation[1]][nextLocation[0]] == "C":
-                            nodePieces = randint(1, 5)
-                            if playerStats["backpack"] - playerStats["load"] < nodePieces:
-                                print(f"You mined {nodePieces} piece(s) of copper.")
-                                print(f"...but you can only carry {playerStats["backpack"] - playerStats["load"]} more piece(s)!")
-                                playerStats["load"] += playerStats["backpack"] - playerStats["load"]
-                                playerStats["minerals"]["C"] += playerStats["backpack"] - playerStats["load"]
-                            else:
-                                playerStats["load"] += nodePieces
-                                playerStats["minerals"]["C"] += nodePieces
-                        elif map[nextLocation[1]][nextLocation[0]] == "S":
-                            if playerStats["pickaxe"] != 2:
-                                print("Your pickaxe is not high level enough")
-                                continue
-                            else:
-                                nodePieces = randint(1, 3)
-                                if playerStats["backpack"] - playerStats["load"] < nodePieces:
-                                    print(f"You mined {nodePieces} piece(s) of silver.")
-                                    print(f"...but you can only carry {playerStats["backpack"] - playerStats["load"]} more piece(s)!")
-                                    playerStats["load"] += playerStats["backpack"] - playerStats["load"]
-                                    playerStats["minerals"]["S"] += playerStats["backpack"] - playerStats["load"]
-                                else:
-                                    playerStats["load"] += nodePieces
-                                    playerStats["minerals"]["S"] += nodePieces
-                        elif map[nextLocation[1]][nextLocation[0]] == "G":
-                            if playerStats["pickaxe"] != 3:
-                                print("Your pickaxe is not high level enough")
-                                continue
-                            else:
-                                nodePieces = randint(1, 2)
-                                if playerStats["backpack"] - playerStats["load"] < nodePieces:
-                                    print(f"You mined {nodePieces} piece(s) of gold.")
-                                    print(f"...but you can only carry {playerStats["backpack"] - playerStats["load"]} more piece(s)!")
-                                    playerStats["load"] += playerStats["backpack"] - playerStats["load"]
-                                    playerStats["minerals"]["G"] += playerStats["backpack"] - playerStats["load"]
-                                else:
-                                    playerStats["load"] += nodePieces
-                                    playerStats["minerals"]["G"] += nodePieces
-
-                        map[playerLocation[1]][playerLocation[0]] = " "
-                        playerLocation = nextLocation
-                        ClearFog()
-
+                        Move(playerChoice)
+                else:
+                    print("Invalid Input, please re-enter again")
         elif playerChoice == "M" or playerChoice == "m":
             DisplayMap()
             continue
