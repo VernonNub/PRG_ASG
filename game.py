@@ -13,22 +13,16 @@ def DisplayMainMenu():
     print("--- Main Menu ----\n(N)ew game\n(L)oad saved game\n(V)iew LeaderBoard\n(Q)uit\n------------------")
 
 def DisplayTownMenu():
-    print(f"DAY {playerStats['Day']}\n----- Sundrop Town -----\n(B)uy stuff\nSee Player (I)nformation\nSee Mine (M)ap\n(E)nter mine\nSa(V)e game\n(Q)uit to main menu\n------------------------")
+    print(f"DAY {playerStats['Day']}\n----- Sundrop Town -----\n(B)uy stuff\nSee Player (I)nformation\nSee Mine (M)ap\n(E)nter mine\nSa(V)e game\n(S)ell Ores\n(Q)uit to main menu\n------------------------")
 
 def SaveData():
     global currentSaveFile
     
     dataFile = open(saveFileName+str(currentSaveFile)+".txt", "w")
-    mapFile = open("map"+str(currentSaveFile)+".txt", "w")
 
     saveFileDays.append(playerStats["Day"])
     for stat in playerStats.keys():
         dataFile.write(f"{stat}, {playerStats[stat]}\n")
-    
-    for row in fogMap:
-        for col in row:
-            mapFile.write(col)
-        mapFile.write("\n")
 
     dataFile.write(f"map, {fogMap}\n")
     dataFile.write(f"location, {playerLocation}\n")
@@ -63,6 +57,8 @@ def DisplayShopMenu():
     #Prevents Pickaxe display if pickaxe is alr maxed level and cannot be upgraded further
     if playerStats["pickaxe"] != 3:
         print(f"(P)ickaxe upgrade to Level {playerStats['pickaxe'] + 1} to mine {pickaxeDetails[playerStats["pickaxe"] + 1][1]} ore for {pickaxeDetails[playerStats["pickaxe"] + 1][0]} GP")
+    if playerStats["Torch"] != 2:  
+        print("(T)orch upgrade to level 2 to have 5x5 view port for 50 GP")  
     print(f"(B)ackpack upgrade to carry {playerStats['backpack'] + 2} items for {playerStats['backpack'] * 2} GP")
     print("(L)eave shop")
     print("-----------------------------------------------------------")
@@ -153,7 +149,7 @@ def DisplayMap():
 
 def DisplayMineMenu():
     print(f"Day {playerStats['Day']}")
-    DisplayMiniMap()
+    DisplayMiniMap(playerStats["Torch"])
     print(f"Turns left: {playerTurns} Load: {playerStats['load']} / {playerStats['backpack']} Steps: {playerStats["steps"]}")
     print("(WASD) to move")
     print("(M)ap, (I)nformation, (P)ortal, (Q)uit to main menu")
@@ -201,7 +197,7 @@ def Move(movementInput):
     
     print(map[playerLocation[1]][playerLocation[0]])
     map[playerLocation[1]][playerLocation[0]] = " "
-    ClearFog()
+    ClearFog(playerStats["Torch"])
 
 def MineOre(ore):
     global playerStats
@@ -225,21 +221,18 @@ def UsePortalStone():
     playerTurns = 20
     print(playerTurns)
 
-def SellOres():
+def SellOres(oreType, oreCount):
     global orePrices
+    global playerStats
 
-    count = 0
+    oreIndexes = {"C": 0, "S": 1, "G": 2}
 
-    for ore in playerStats["minerals"].keys():
-        orePrices[count] = randint(oreDescription[ore][2], oreDescription[ore][3])
-        if playerStats["minerals"][ore] > 0:
-            print(f"You sell {playerStats["minerals"][ore]} {oreDescription[ore][5]} ore for {playerStats["minerals"][ore] * orePrices[count]} GP.")
-            playerStats["GP"] += playerStats["minerals"][ore] * orePrices[count]
-            playerStats["minerals"][ore] = 0
-            playerStats["load"] = 0
-            print(f"You now have {playerStats["GP"]} GP!")
-        
-        count += 1
+    print(f"You sold {oreCount} {oreDescription[oreType][5]} ore for {oreCount * orePrices[oreIndexes[oreType]]} GP.")
+
+    playerStats["GP"] += oreCount * orePrices[oreIndexes[oreType]]
+    playerStats["minerals"][oreType] -= oreCount
+    playerStats["load"] -= oreCount
+    print(f"You now have {playerStats["GP"]} GP!")
 
 #Collect Map from .txt file and save in nested lists, where each element is the rows which contains a list of all elements
 def saveMap():
@@ -305,31 +298,34 @@ def saveMap():
     map.extend([row, row])
     fogMap.extend([row, row])
 
-def ClearFog():
+def ClearFog(torchlevel):
     global fogMap
     global map
 
-    #Saves every coordinate to be cleared in the fog (U stands for upper, B for bottom, L for left and R for right)
-    clearCoordinates = {"U": [playerLocation[0], playerLocation[1]-1], 
-                        "B": [playerLocation[0], playerLocation[1]+1], 
-                        "UR": [playerLocation[0]+1, playerLocation[1]-1], 
-                        "UL": [playerLocation[0]-1, playerLocation[1]-1], 
-                        "BR": [playerLocation[0] + 1, playerLocation[1]+1], 
-                        "BL": [playerLocation[0] - 1, playerLocation[1]+1], 
-                        "L": [playerLocation[0] - 1, playerLocation[1]], 
-                        "R": [playerLocation[0] + 1, playerLocation[1]]}
+
     
-    #Clear each fog by replacing "?" with true map value
-    for fogs in clearCoordinates.values():
-        fogMap[fogs[1]][fogs[0]] = map[fogs[1]][fogs[0]]
+    if torchlevel == 2:
+        xDisplay = [playerLocation[0] - 2, playerLocation[0] + 2]
+        yDisplay = [playerLocation[1] - 2, playerLocation[1] + 2]
+    else:
+        xDisplay = [playerLocation[0] - 1, playerLocation[0] + 1]
+        yDisplay = [playerLocation[1] - 1, playerLocation[1] + 1]
+
+    for i in range(yDisplay[0], yDisplay[1]+1):
+        for f in range(xDisplay[0], xDisplay[1]+1):
+            fogMap[i][f] = map[i][f]
     
-def DisplayMiniMap():
+def DisplayMiniMap(torchlevel):
     #Collects the Start and End value to print for minimap
-    xDisplay = [playerLocation[0] - 1, playerLocation[0] + 1]
-    yDisplay = [playerLocation[1] - 1, playerLocation[1] + 1]
+    if torchlevel == 2:
+        xDisplay = [playerLocation[0] - 2, playerLocation[0] + 2]
+        yDisplay = [playerLocation[1] - 2, playerLocation[1] + 2]
+    else:
+        xDisplay = [playerLocation[0] - 1, playerLocation[0] + 1]
+        yDisplay = [playerLocation[1] - 1, playerLocation[1] + 1]
 
     #Border
-    print("+---+")
+    print(f"+{(xDisplay[1] - xDisplay[0]) * "-"}+")
     for i in range(yDisplay[0], yDisplay[1]+1):
         print("|", end="")
         for f in range(xDisplay[0], xDisplay[1]+1):
@@ -344,7 +340,7 @@ def DisplayMiniMap():
                 print(fogMap[i][f], end="")
         print("|", end="\n")
     #Border
-    print("+---+\n")
+    print(f"+{(xDisplay[1] - xDisplay[0]) * "-"}+\n")
 
 #Holds the number of save files and leaderboard
 def LoadLocalSave():
@@ -401,13 +397,15 @@ movements = {"w": [0, -1],  "s": [0, 1], "a": [-1, 0], "d":[1, 0] }
 playerChoice = ""
 playerTurns = 20
 
+daycheck = 0
+
 orePrices = [0, 0, 0]
 
 nodePieces = 0
 
 leaderboard = []
 
-integerStats = ["Day", "GP", "backpack", "steps", "load", "pickaxe"]
+integerStats = ["Day", "GP", "backpack", "steps", "load", "pickaxe", "Torch"]
 #All of player stats to be accessed
 playerStats = {"name": "", 
                "Day": 1, 
@@ -417,7 +415,8 @@ playerStats = {"name": "",
                "load": 0, 
                "minerals": {"C": 0, "S": 0, "G": 0}, 
                "pickaxe": 1, 
-               "portal": [-1, -1]}
+               "portal": [-1, -1], 
+               "Torch": 1}
 
 #Map layout for true map and fog
 map = []
@@ -454,19 +453,20 @@ while True:
         #Refresh Player's Stats (New Account)
         playerStats = {"name": "", 
                "Day": 1, 
-               "GP": 0, 
+               "GP": 49, 
                "backpack": 10, 
                "steps": 0, 
                "load": 0, 
-               "minerals": {"C": 0, "S": 0, "G": 0}, 
+               "minerals": {"C": 60, "S": 20, "G": 1000}, 
                "pickaxe": 1, 
-               "portal": [-1, -1]}
+               "portal": [-1, -1],
+               "Torch": 1}
         playerTurns = 20
         playerLocation = [2, 2]
 
         saveMap()
         #Clears starting fog around player
-        ClearFog()
+        ClearFog(playerStats["Torch"])
 
         #Collects player name to store
         playerStats["name"] = input("Greetings, miner! What is your name? ")
@@ -485,7 +485,6 @@ while True:
     
     while True:
         #------------------------Town Menu------------------------
-        SellOres()
         if playerStats["GP"] >= 500:
             print(f"Woo-hoo! Well done, {playerStats['name']}, you have {playerStats['GP']} GP!")
             print("You now have enough to retire and play video games every day.")
@@ -538,8 +537,11 @@ while True:
                 #Actions for each option, described in each functions
                 if (playerChoice == "p" or playerChoice == "P") and (playerStats["pickaxe"] != 3 and playerStats["GP"] >= pickaxeDetails[playerStats["pickaxe"] + 1][0]):
                     UpgradePickaxe()
-                elif (playerChoice == "B" or playerChoice == "b") and (playerStats["GP"] > playerStats['backpack'] * 2):
+                elif (playerChoice == "B" or playerChoice == "b") and (playerStats["GP"] >= playerStats['backpack'] * 2):
                     UpgradeBackpack()
+                elif (playerChoice == "T" or playerChoice == "t") and (playerStats["GP"] >= 50 and playerStats["Torch"]!= 2):
+                    playerStats["Torch"] += 1
+                    playerStats["GP"] -= 50
                 elif playerChoice == "L" or playerChoice == "l":
                     #break out of loop to go back to town menu loop
                     print()
@@ -599,6 +601,55 @@ while True:
         elif playerChoice == "M" or playerChoice == "m":
             DisplayMap()
             continue
+        elif playerChoice.lower() == "s":
+            currentOre = 0
+            if daycheck < playerStats["Day"]:
+                daycheck = playerStats["Day"]
+                for ore in playerStats["minerals"].keys():
+                    orePrices[currentOre] = randint(oreDescription[ore][2], oreDescription[ore][3])
+                    currentOre += 1
+
+            while True:
+                currentOre = 0
+                for ore in playerStats["minerals"].keys():
+                    print(f"{oreDescription[ore][-1]} is selling for {orePrices[currentOre]} and you have {playerStats["minerals"][ore]} of it, type {ore} to sell")
+                    currentOre += 1
+                print(f"Leave")
+                playerChoice = input("Choice?")
+
+                print(playerChoice)
+                if playerChoice.lower() == "c":
+                    playerChoice = input("How many pieces (Type a number or all)? ")
+                    if playerChoice.lower() == "all":
+                        playerChoice = playerStats["minerals"]["C"]
+                    else:
+                        if playerStats["minerals"]["C"] < int(playerChoice):
+                            print("Insufficient Ores please try again")
+                        continue
+                    SellOres("C", int(playerChoice))
+                elif playerChoice.lower() == "s":
+                    playerChoice = input("How many pieces(Type a number or all)? ")
+                    if playerChoice.lower() == "all":
+                        playerChoice = playerStats["minerals"]["S"]
+                    else:
+                        if playerStats["minerals"]["S"] < int(playerChoice):
+                            print("Insufficient Ores please try again")
+                        continue
+                    SellOres("S", int(playerChoice))
+                elif playerChoice.lower() == "g":
+                    playerChoice = input("How many pieces(Type a number or all)? ")
+                    if playerChoice.lower() == "all":
+                        playerChoice = playerStats["minerals"]["G"]
+                    else:
+                        if playerStats["minerals"]["G"] < int(playerChoice):
+                            print("Insufficient Ores please try again")
+                        continue
+                    SellOres("G", int(playerChoice))
+                elif playerChoice.lower() == "l":
+                    break
+                else:
+                    print("Invalid input, please re-enter")
+                    continue
         else:
             print("Invalid Input, please re-enter your choice")
 
