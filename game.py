@@ -526,15 +526,18 @@ while True:
     elif playerChoice == "L" or playerChoice == "l":
         LoadLocalSave()
         for i in range(currentSaveFile - 1):
+            #Prints all save files the current day their in
             print(f"Data File Number {i + 1} --- {saveFileDays[i]} Days progress")
         while True:
             playerChoice = input("Enter the file save to load or q to quit: ")
             if playerChoice.isdigit() == True:
+                #Loads chosen save file
                 LoadData(playerChoice)
                 break
             elif playerChoice == "q" or playerChoice == "Q":
                 break
             else:
+                #Input validation
                 print("Invalid input, re-enter your choice")
                 continue
     elif playerChoice == "N" or playerChoice == "n":
@@ -551,7 +554,6 @@ while True:
                "Torch": 1}
         playerTurns = 20
         playerLocation = [2, 2]
-
         saveMap()
         #Clears starting fog around player
         ClearFog(playerStats["Torch"])
@@ -560,10 +562,13 @@ while True:
         playerStats["name"] = input("Greetings, miner! What is your name? ")
         print(f"Pleased to meet you, {playerStats["name"]}. Welcome to Sundrop Town!\n")
     elif playerChoice == "v" or playerChoice == "V":
+        #empty leaderboard
         if leaderboard == []:
             print("No one has completed the game!!\n")
             continue
+        #prints everyone
         else:
+            #Treacks position to print
             LBposition = 1
             print("Top players are:")
             for player in leaderboard:
@@ -577,27 +582,36 @@ while True:
     
     while True:
         #------------------------Town Menu------------------------
+        #Movement of ore to warehouse
         if playerStats["load"] > 0:
             playerStats["load"] = 0
             print("Ores has been moved to warehouse, check to sell")
+
+        #Checks for new day (Prevents exploit to replenish ores)
         replenishCheck = 0
         if replenishCheck < playerStats["Day"]:
             replenishCheck = playerStats["Day"]
             replenishNodes()
+
+        #Win game
         if playerStats["GP"] >= 500:
             print(f"Woo-hoo! Well done, {playerStats['name']}, you have {playerStats['GP']} GP!")
             print("You now have enough to retire and play video games every day.")
             print(f"And it only took you {playerStats['Day']} days and {playerStats["steps"]} steps! You win!")
 
+            #position to insert if better than player
             position = 0
             print(leaderboard)
+            #If empty, just add, no check
             if leaderboard == []:
                 leaderboard.append([playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
             else:
+                #Checks for day, steps and GP
                 for player in leaderboard:
                     if int(player[1]) > playerStats["Day"]:
                         leaderboard.insert(position, [playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
                         if len(leaderboard) > 5:
+                            #Removes last player thats not top 5
                             leaderboard.pop(-1)
                             break
                     elif int(player[1]) == playerStats["Day"]:
@@ -612,7 +626,8 @@ while True:
                                 if len(leaderboard) > 5:
                                     leaderboard.pop(-1)
                                 break
-
+                    
+                    #Check if its at the end and the amt is less than 5, just add
                     if position + 1 == len(leaderboard) and len(leaderboard) < 5:
                         leaderboard.append([playerStats["name"], playerStats["Day"], playerStats["steps"], playerStats["GP"]])
                         break
@@ -653,9 +668,9 @@ while True:
             DisplayPlayerInformation()
             continue
         elif playerChoice == "V" or playerChoice == "v":
-            #TBA
             SaveData()
             SaveLocalSave()
+            #To open next file so as to not overwrite
             currentSaveFile += 1
             break
         elif playerChoice == "E" or playerChoice == "e":
@@ -665,6 +680,7 @@ while True:
             print("---------------------------------------------------")
 
             while True:
+                #No turns remaining
                 if playerTurns == 0:
                     print("You are exhausted.")
                     print("You place your portal stone here and zap back to town.")
@@ -703,10 +719,13 @@ while True:
         elif playerChoice == "M" or playerChoice == "m":
             DisplayMap()
             continue
+        #Selling ore
         elif playerChoice == "s" or playerChoice == "S":
             currentOre = 0
+            #Day check which prevents exploit of constant rerolling of prices
             if daycheck < playerStats["Day"]:
                 daycheck = playerStats["Day"]
+                #Gets randomised price
                 for ore in playerStats["minerals"].keys():
                     orePrices[currentOre] = randint(oreDescription[ore][2], oreDescription[ore][3])
                     currentOre += 1
@@ -719,9 +738,10 @@ while True:
                 print(f"Leave")
                 playerChoice = input("Choice?")
 
-                print(playerChoice)
+                #Each ore choices
                 if playerChoice == "c" or playerChoice == "c":
                     playerChoice = input("How many pieces (Type a number or all)? ")
+                    #If all, use the max amount
                     if playerChoice.lower() == "all":
                         playerChoice = playerStats["minerals"]["C"]
                     else:
