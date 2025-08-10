@@ -167,6 +167,7 @@ def DisplayMap():
     print("+------------------------------+\n")
 
 def DisplayMineMenu():
+    ClearFog(playerStats["Torch"])
     #Prints minemenu
     print(f"Day {playerStats['Day']}")
     DisplayMiniMap(playerStats["Torch"])
@@ -267,12 +268,11 @@ def SellOres(oreType, oreCount):
 
     oreIndexes = {"C": 0, "S": 1, "G": 2}
 
-    print(f"You sold {oreCount} {oreDescription[oreType][5]} ore for {oreCount * orePrices[oreIndexes[oreType]]} GP.")
+    print(f"\nYou sold {oreCount} {oreDescription[oreType][5]} ore for {oreCount * orePrices[oreIndexes[oreType]]} GP.")
 
     playerStats["GP"] += oreCount * orePrices[oreIndexes[oreType]]
     playerStats["minerals"][oreType] -= oreCount
-    playerStats["load"] -= oreCount
-    print(f"You now have {playerStats["GP"]} GP!")
+    print(f"You now have {playerStats["GP"]} GP!\n")
 
 #Collect Map from .txt file and save in nested lists, where each element is the rows which contains a list of all elements
 def saveMap():
@@ -486,7 +486,7 @@ playerTurns = 20
 #All of player stats to be accessed
 playerStats = {"name": "", 
                "Day": 1, 
-               "GP": 500, 
+               "GP": 0, 
                "backpack": 10, 
                "steps": 0, 
                "load": 0, 
@@ -544,11 +544,11 @@ while True:
         #Refresh Player's Stats (New Account)
         playerStats = {"name": "", 
                "Day": 1, 
-               "GP": 400, 
+               "GP": 0, 
                "backpack": 10, 
                "steps": 0, 
                "load": 0, 
-               "minerals": {"C": 60, "S": 20, "G": 1000}, 
+               "minerals": {"C": 0, "S": 0, "G": 0}, 
                "pickaxe": 1, 
                "portal": [-1, -1],
                "Torch": 1}
@@ -721,6 +721,7 @@ while True:
             continue
         #Selling ore
         elif playerChoice == "s" or playerChoice == "S":
+            print("---------------------------------------------------")
             currentOre = 0
             #Day check which prevents exploit of constant rerolling of prices
             if daycheck < playerStats["Day"]:
